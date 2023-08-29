@@ -17,7 +17,6 @@ def buildManyToOneModel(shape):
 	return model
 
 def start_training(model, X_train, Y_train, X_validate, Y_validate, modelName):
-	# train model
     model = buildManyToOneModel(X_train.shape)
     callback = EarlyStopping(monitor="loss", patience=100, verbose=1, mode="auto")
     history = model.fit(X_train, Y_train, epochs=5000, batch_size=256, validation_data=(X_validate, Y_validate),
@@ -26,4 +25,4 @@ def start_training(model, X_train, Y_train, X_validate, Y_validate, modelName):
     model.summary()
     model.save(modelName)
 
-    return model
+    return model, history

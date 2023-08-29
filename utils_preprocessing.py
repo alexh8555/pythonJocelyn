@@ -1,6 +1,5 @@
-import requests
+import requests, glob, datetime, time
 import pandas as pd
-import datetime
 import numpy as np
 
 # Download Data
@@ -90,20 +89,33 @@ def shuffle(X, Y):
     return X[randomList], Y[randomList]
 
 
-def splitData(X, Y, rate):
-    X_train = X[int(X.shape[0] * rate):]
-    Y_train = Y[int(Y.shape[0] * rate):]
-    X_val = X[:int(X.shape[0] * rate)]
-    Y_val = Y[:int(Y.shape[0] * rate)]
+def splitData(X, Y, validate_rate):
+    X_train = X[int(X.shape[0] * validate_rate):]
+    Y_train = Y[int(Y.shape[0] * validate_rate):]
+    X_val = X[:int(X.shape[0] * validate_rate)]
+    Y_val = Y[:int(Y.shape[0] * validate_rate)]
     return X_train, Y_train, X_val, Y_val
 
-def buildData(data, target, pastData=30, futureData=5, rate=0.1):
+def buildData(data, target, pastData=30, futureData=5, validate_rate=0.1):
     X_train, Y_train = [], []
     for i in range(data.shape[0] - futureData - pastData):
         X_train.append(np.array(data.iloc[i:i + pastData]))
         Y_train.append(np.array(target.iloc[i + pastData:i + pastData + futureData]))
 
     X_train, Y_train = shuffle(np.array(X_train), np.array(Y_train))
-    X_train, Y_train, X_val, Y_val = splitData(X_train, Y_train, rate)
+    X_train, Y_train, X_val, Y_val = splitData(X_train, Y_train, validate_rate)
 
     return X_train, Y_train, X_val, Y_val
+
+class preData:
+    def __init__(self):
+        self.model = []
+        self.date = datetime.datetime.utcfromtimestamp(time.time())
+        self.today = str(self.date.month) + str(self.date.day)
+        self.model.extend(glob.glob(self.today + 'model//**.h5'))
+        self.raw = 'raw//history_raw.csv' # Maybe change to list
+        # self.file.extend(glob.glob(self.today + 'npy//**.npy'))
+        print('Checking what we got in local...')
+
+    def listModel(self):
+        print('{0}'.format(self.model))
