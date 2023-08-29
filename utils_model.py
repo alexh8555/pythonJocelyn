@@ -36,6 +36,5 @@ def load_pretrain(modelName):
 
 def prediction(model, testing, symbol):
     prediction = model.predict(testing)
-    print('Predicted stock price of ' + '[' + symbol + ']' )
-    print('The price tomorrow will be ' + str(prediction[0][0]))
+    print('Predicted stock price of ' + '[' + symbol + ']' + ' is ' + str(prediction[0][0]))
     return

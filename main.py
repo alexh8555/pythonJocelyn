@@ -102,7 +102,10 @@ if __name__ == '__main__':
         test_data = prep.preprocessing(data, list(data.columns.values))
         test_data = pd.DataFrame.from_dict(test_data)
         test_data.pop('symbol'); test_data.pop('date');
-        test, answer = prep.getTestData(test_data, pastData, futureData)
+
+        # day=0 to predict tomorrow
+        # day=1 to predict today for verification
+        test, answer = prep.getTestData(test_data, pastData, day=0)
 
         model.prediction(model.load_pretrain(modelName), test, symbol)
         print('Answer : {0}'.format(answer))

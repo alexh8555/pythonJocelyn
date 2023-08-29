@@ -107,13 +107,18 @@ def getTrainData(data, target, pastData=30, futureData=5, validate_rate=0.1):
 
     return X_train, Y_train, X_val, Y_val
 
-def getTestData(data, answer, pastData=30, futureData=5):
-    testing, answer = [], []
-    answer = list(data.pop('close'))
-    # FIXME: This is hardcoded for 10 days, need to fix it.
-    testing.append(np.array(data.iloc[-12:-2]))
-    testing = np.reshape(testing, (1, 10, 8))
-    answer = answer[-1]
+def getTestData(data, pastData=30, day=0):
+    # day=0 to predict tomorrow
+    # day=1 to predict today for verification
+    testing = []
+    if day == 0:
+        data.pop('close')
+        answer = 0
+    else:
+        answer = list(data.pop('close'))[-day]
+
+    testing.append(np.array(data.iloc[(-1-pastData-day):(-1-day)]))
+    testing = np.reshape(testing, (1, pastData, 8))
 
     return testing, answer
 
