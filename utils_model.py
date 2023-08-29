@@ -3,6 +3,8 @@ from keras.layers import Dense, Dropout, Activation, Flatten, LSTM, TimeDistribu
 # from keras.layers.normalization import BatchNormalization
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping, ModelCheckpoint
+import numpy as np
+import datetime
 
 def buildManyToOneModel(shape):
 	model = Sequential()
@@ -26,3 +28,14 @@ def start_training(model, X_train, Y_train, X_validate, Y_validate, modelName):
     model.save(modelName)
 
     return model, history
+
+def load_pretrain(modelName):
+    model = load_model(modelName)
+    model.summary()
+    return model
+
+def prediction(model, testing, symbol):
+    prediction = model.predict(testing)
+    print('Predicted stock price of ' + '[' + symbol + ']' )
+    print('The price tomorrow will be ' + str(prediction[0][0]))
+    return

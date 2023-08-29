@@ -96,7 +96,7 @@ def splitData(X, Y, validate_rate):
     Y_val = Y[:int(Y.shape[0] * validate_rate)]
     return X_train, Y_train, X_val, Y_val
 
-def buildData(data, target, pastData=30, futureData=5, validate_rate=0.1):
+def getTrainData(data, target, pastData=30, futureData=5, validate_rate=0.1):
     X_train, Y_train = [], []
     for i in range(data.shape[0] - futureData - pastData):
         X_train.append(np.array(data.iloc[i:i + pastData]))
@@ -107,14 +107,30 @@ def buildData(data, target, pastData=30, futureData=5, validate_rate=0.1):
 
     return X_train, Y_train, X_val, Y_val
 
+def getTestData(data, answer, pastData=30, futureData=5):
+    testing, answer = [], []
+    answer = list(data.pop('close'))
+    # FIXME: This is hardcoded for 10 days, need to fix it.
+    testing.append(np.array(data.iloc[-12:-2]))
+    testing = np.reshape(testing, (1, 10, 8))
+    answer = answer[-1]
+
+    return testing, answer
+
+def getModelName(symbol, sysTime):
+    date = datetime.datetime.utcfromtimestamp(sysTime)
+    today = str(date.month) + str(date.day)
+    modelName = today + 'model/' + today + '_' + symbol + '.h5'
+    return modelName
+
 class preData:
     def __init__(self):
         self.model = []
         self.date = datetime.datetime.utcfromtimestamp(time.time())
         self.today = str(self.date.month) + str(self.date.day)
-        self.model.extend(glob.glob(self.today + 'model//**.h5'))
-        self.raw = 'raw//history_raw.csv' # Maybe change to list
-        # self.file.extend(glob.glob(self.today + 'npy//**.npy'))
+        self.model.extend(glob.glob(self.today + 'model/**.h5'))
+        self.raw = 'raw/history_raw.csv' # Maybe change to list
+        # self.file.extend(glob.glob(self.today + 'npy/**.npy'))
         print('Checking what we got in local...')
 
     def listModel(self):

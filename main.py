@@ -1,7 +1,7 @@
 import pandas as pd
 import os, logging
 import matplotlib.pyplot as plt
-import utiils_model as model
+import utils_model as model
 import utils_preprocessing as prep
 from time import time
 from datetime import datetime
@@ -9,7 +9,7 @@ from datetime import datetime
 ''' Config '''
 # TODO: support only one symbol at a time, because we have to train with only one stock at a time
 symbols = ['2330']
-pastData = 30 # Days of Feature
+pastData = 10 # Days of Feature
 futureData = 5 # Days of Target
 validate_rate = 0.1 # Ratio for validation data
 DEBUG_PREPROCESSING = False
@@ -46,21 +46,19 @@ if __name__ == '__main__':
     else:
         logging.info('file:{0}, symbol:{1} exist!'.format(preData.raw, symbols[0]))
 
+    ''' Training '''
     for symbol in symbols:
-        date = datetime.utcfromtimestamp(start_sys_time)
-        today = str(date.month) + str(date.day)
-        modelName = today + 'model//' + today + symbol + '.h5'
-        if (modelName in preData.model) and (SKIP_TRAIN):
+        modelName = prep.getModelName(symbol, start_sys_time)
+
+        if (modelName in preData.model) or (SKIP_TRAIN):
             logging.info(symbol + ' model already trained, skip!')
             continue
 
         # Read data from csv and prepare data
-        data = pd.read_csv(preData.raw)
-        columes = list(data.columns.values)
-
         # Available options
         # ['date', 'open', 'high', 'low', 'close', 'volume', 'turnover', 'change', 'symbol'] + ['ts', 'weekday']
-        train_data = prep.preprocessing(data, columes)
+        data = pd.read_csv(preData.raw)
+        train_data = prep.preprocessing(data, list(data.columns.values))
         columes = list(train_data.keys())
 
         if DEBUG_PREPROCESSING:
@@ -88,14 +86,26 @@ if __name__ == '__main__':
         target_data = train_data.pop('close')
 
         # Prepare data for training/validation
-        X_train, Y_train, X_validate, Y_validate = prep.buildData(train_data, target_data, pastData, futureData, validate_rate)
+        X_train, Y_train, X_validate, Y_validate = prep.getTrainData(train_data, target_data, pastData, futureData, validate_rate)
 
         # train model
         model, history = model.start_training(model, X_train, Y_train, X_validate, Y_validate, modelName)
 
-    # TODO: prediction
+    ''' Prediction '''
     for symbol in symbols:
-        pass
+        # TODO: add model class
+        modelName = prep.getModelName(symbol, start_sys_time)
+        logging.info('Start prediction {0}, file:{1}'.format(symbol, modelName))
+
+        # Read data from csv and prepare data
+        data = pd.read_csv(preData.raw)
+        test_data = prep.preprocessing(data, list(data.columns.values))
+        test_data = pd.DataFrame.from_dict(test_data)
+        test_data.pop('symbol'); test_data.pop('date');
+        test, answer = prep.getTestData(test_data, pastData, futureData)
+
+        model.prediction(model.load_pretrain(modelName), test, symbol)
+        print('Answer : {0}'.format(answer))
 
     # finalize
     finalize(start_sys_time)
