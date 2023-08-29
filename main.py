@@ -56,6 +56,7 @@ if __name__ == '__main__':
 
     # Generate training/validation data
     train_data = pd.DataFrame.from_dict(train_data)
+    # TODO: Some of the values need to be normolize
     # Pop those not needed colume
     train_data.pop('symbol')
     train_data.pop('date')
