@@ -1,7 +1,9 @@
 import requests, glob, datetime, time
 import pandas as pd
 import numpy as np
+import yfinance as yf
 
+'''FUGLE'''
 # Download Data
 def get_symbols():
     '''
@@ -26,7 +28,7 @@ def gen_calendar():
     calendar[['begin', 'end']] = calendar[['begin', 'end']].astype('str')
     return calendar
 
-def get_hist_data(symbols=[]):
+def get_hist_data_fugle(symbols=[]):
     '''
     透過富果Fugle API抓取歷史資料
     '''
@@ -41,6 +43,7 @@ def get_hist_data(symbols=[]):
             cur_begin = calendar.loc[j, 'begin']
             cur_end = calendar.loc[j, 'end']
             # 透過富果Fugle API抓取歷史資料
+            # data_link = f'https://api.fugle.tw/marketdata/v0.3/candles?symbolId={cur_symbol}&apiToken=demo&from={cur_begin}&to={cur_end}&fields=open,high,low,close,volume,turnover,change'
             data_link = f'https://api.fugle.tw/marketdata/v0.3/candles?symbolId=2884&apiToken=demo&from={cur_begin}&to={cur_end}&fields=open,high,low,close,volume,turnover,change'
             resp = requests.get(url=data_link)
             data = resp.json()
@@ -51,17 +54,50 @@ def get_hist_data(symbols=[]):
         result = pd.concat([result, symbol_result])
     return result
 
+'''YAHOO'''
+def get_hist_data_yahoo(symbols=['2330']):
+    '''
+    透過yfinance API抓取歷史資料
+    '''
+    if len(symbols) == 0:
+        print('You should input at least one symbol')
+        return
+    # 讀取csv檔
+    historical_data = pd.DataFrame()
+    for symbol in symbols:
+        # 抓取股票資料
+        stock_id = symbol + '.TW'
+        data = yf.Ticker(stock_id)
+        df = data.history(period="max")
+        df.reset_index(inplace=True)
+        # 增加股票代號
+        df['symbol'] = symbol
+        df.columns = map(str.lower, df.columns)
+        # df['date'] = map(str.lower, df['date'])
+        for index, row in df.iterrows():
+            row['date'] = row['date'][0:11]
+        # 合併
+        historical_data = pd.concat([df, historical_data])
+        time.sleep(0.8)
+    return historical_data
 
-# Preproessing
+'''Preproessing'''
 convertDateToTs = lambda x: datetime.datetime.timestamp(datetime.datetime.strptime(x,"%Y-%m-%d"))
 getWeekday = lambda x: datetime.datetime.strptime(x,"%Y-%m-%d").weekday()
+convertDateToTsYahoo = lambda x: datetime.datetime.timestamp(datetime.datetime.strptime(x,"%Y-%m-%d %H:%M:%S%z"))
+getWeekdayYahoo = lambda x: datetime.datetime.strptime(x,"%Y-%m-%d %H:%M:%S%z").weekday()
 
 def preprocessing(data, columes):
     out_data, sorted_out_data = {}, {}
 
     # Convert date to timestamp first
-    out_data['ts'] = list(map(lambda x: convertDateToTs(x), data['date'].tolist()))
-    out_data['weekday'] = list(map(lambda x: getWeekday(x), data['date'].tolist()))
+    try:
+        out_data['ts'] = list(map(lambda x: convertDateToTs(x), data['date'].tolist()))
+        out_data['weekday'] = list(map(lambda x: getWeekday(x), data['date'].tolist()))
+    except:
+        out_data['ts'] = list(map(lambda x: convertDateToTsYahoo(x), data['date'].tolist()))
+        out_data['weekday'] = list(map(lambda x: getWeekdayYahoo(x), data['date'].tolist()))
+
     out_data['date'] = data['date'].tolist()
 
     for c in columes:
@@ -107,7 +143,7 @@ def getTrainData(data, target, pastData=30, futureData=5, validate_rate=0.1):
 
     return X_train, Y_train, X_val, Y_val
 
-def getTestData(data, pastData=30, day=0):
+def getTestData(data, lookback=30, day=0):
     # day=0 to predict tomorrow
     # day=1 to predict today for verification
     testing = []
@@ -117,26 +153,45 @@ def getTestData(data, pastData=30, day=0):
     else:
         answer = list(data.pop('close'))[-day]
 
-    testing.append(np.array(data.iloc[(-1-pastData-day):(-1-day)]))
-    testing = np.reshape(testing, (1, pastData, 8))
+    testing.append(np.array(data.iloc[(-1-lookback-day):(-1-day)]))
+    testing = np.reshape(testing, (1, lookback, 8))
 
     return testing, answer
 
-def getModelName(symbol, sysTime):
-    date = datetime.datetime.utcfromtimestamp(sysTime)
-    today = str(date.month) + str(date.day)
-    modelName = today + 'model/' + today + '_' + symbol + '.h5'
-    return modelName
+# def getModelName(symbol, sysTime, ):
+#     date = datetime.datetime.utcfromtimestamp(sysTime)
+#     today = str(date.month) + str(date.day)
+#     modelName = today + 'model/' + today + '_' + symbol + '.h5'
+#     return modelName
 
-class preData:
+class preDataFugle:
     def __init__(self):
         self.model = []
         self.date = datetime.datetime.utcfromtimestamp(time.time())
         self.today = str(self.date.month) + str(self.date.day)
-        self.model.extend(glob.glob(self.today + 'model/**.h5'))
-        self.raw = 'raw/history_raw.csv' # Maybe change to list
+        self.model.extend(glob.glob('fugle_' + self.today + '_model/**.h5'))
+        self.raw = 'raw_fugle/history_raw.csv' # Maybe change to list
         # self.file.extend(glob.glob(self.today + 'npy/**.npy'))
-        print('Checking what we got in local...')
+        print('[Fugle] Checking what we got in local...')
+
+    def getModelName(self, symbol):
+        return 'fugle_' + self.today + '_model/' + self.today + '_' + symbol + '.h5'
+
+    def listModel(self):
+        print('{0}'.format(self.model))
+
+class preDataYahoo:
+    def __init__(self):
+        self.model = []
+        self.date = datetime.datetime.utcfromtimestamp(time.time())
+        self.today = str(self.date.month) + str(self.date.day)
+        self.model.extend(glob.glob('yahoo_' + self.today + '_model/**.h5'))
+        self.raw = 'raw_yahoo/history_raw.csv' # Maybe change to list
+        # self.file.extend(glob.glob(self.today + 'npy/**.npy'))
+        print('[Yahoo] Checking what we got in local...')
+
+    def getModelName(self, symbol):
+        return 'yahoo_' + self.today + '_model/' + self.today + '_' + symbol + '.h5'
 
     def listModel(self):
         print('{0}'.format(self.model))

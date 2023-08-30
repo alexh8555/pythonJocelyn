@@ -9,9 +9,11 @@ from datetime import datetime
 ''' Config '''
 # TODO: support only one symbol at a time, because we have to train with only one stock at a time
 symbols = ['2330']
-pastData = 10 # Days of Feature
+lookback = 10 # Days to lookback
 futureData = 5 # Days of Target
 validate_rate = 0.1 # Ratio for validation data
+USE_FUGEL = False
+USE_YAHOO = True
 DEBUG_PREPROCESSING = False
 SKIP_TRAIN = False
 
@@ -34,21 +36,31 @@ def finalize(start_sys_time):
 ''' Main Process'''
 if __name__ == '__main__':
     start_sys_time = initialize()
-    preData = prep.preData()
 
+    '''Download data'''
     # TODO: Get all stocks data
-    # data = prep.get_hist_data()
+    # data = prep.get_hist_data_fugle()
     # TODO: append new data everyday
+    if USE_FUGEL:
+        preData = prep.preDataFugle()
 
-    if not os.path.isfile(preData.raw):
-        data = prep.get_hist_data(symbols=symbols)
-        data.to_csv(preData.raw, index=False)
-    else:
-        logging.info('file:{0}, symbol:{1} exist!'.format(preData.raw, symbols[0]))
+        if not os.path.isfile(preData.raw):
+            data = prep.get_hist_data_fugle(symbols=symbols)
+            data.to_csv(preData.raw, index=False)
+        else:
+            logging.info('file:{0}, symbol:{1} exist!'.format(preData.raw, symbols[0]))
+
+    elif USE_YAHOO:
+        preData = prep.preDataYahoo()
+        if not os.path.isfile(preData.raw):
+            data = prep.get_hist_data_yahoo(symbols=symbols)
+            data.to_csv(preData.raw, index=False)
+        else:
+            logging.info('file:{0}, symbol:{1} exist!'.format(preData.raw, symbols[0]))
 
     ''' Training '''
     for symbol in symbols:
-        modelName = prep.getModelName(symbol, start_sys_time)
+        modelName = preData.getModelName(symbol)
 
         if (modelName in preData.model) or (SKIP_TRAIN):
             logging.info(symbol + ' model already trained, skip!')
@@ -86,7 +98,7 @@ if __name__ == '__main__':
         target_data = train_data.pop('close')
 
         # Prepare data for training/validation
-        X_train, Y_train, X_validate, Y_validate = prep.getTrainData(train_data, target_data, pastData, futureData, validate_rate)
+        X_train, Y_train, X_validate, Y_validate = prep.getTrainData(train_data, target_data, lookback, futureData, validate_rate)
 
         # train model
         model, history = model.start_training(model, X_train, Y_train, X_validate, Y_validate, modelName)
@@ -94,7 +106,7 @@ if __name__ == '__main__':
     ''' Prediction '''
     for symbol in symbols:
         # TODO: add model class
-        modelName = prep.getModelName(symbol, start_sys_time)
+        modelName = preData.getModelName(symbol)
         logging.info('Start prediction {0}, file:{1}'.format(symbol, modelName))
 
         # Read data from csv and prepare data
@@ -105,7 +117,7 @@ if __name__ == '__main__':
 
         # day=0 to predict tomorrow
         # day=1 to predict today for verification
-        test, answer = prep.getTestData(test_data, pastData, day=0)
+        test, answer = prep.getTestData(test_data, lookback, day=0)
 
         model.prediction(model.load_pretrain(modelName), test, symbol)
         print('Answer : {0}'.format(answer))
