@@ -1,7 +1,7 @@
 import pandas as pd
 import os, logging
 import matplotlib.pyplot as plt
-import utils_model as model
+import utils_model as utm
 import utils_preprocessing as prep
 from time import time
 from datetime import datetime
@@ -101,7 +101,7 @@ if __name__ == '__main__':
         X_train, Y_train, X_validate, Y_validate = prep.getTrainData(train_data, target_data, lookback, futureData, validate_rate)
 
         # train model
-        model, history = model.start_training(model, X_train, Y_train, X_validate, Y_validate, modelName)
+        model, history = utm.start_training(model, X_train, Y_train, X_validate, Y_validate, modelName)
 
     ''' Prediction '''
     for symbol in symbols:
@@ -119,7 +119,7 @@ if __name__ == '__main__':
         # day=1 to predict today for verification
         test, answer = prep.getTestData(test_data, lookback, day=0)
 
-        model.prediction(model.load_pretrain(modelName), test, symbol)
+        utm.prediction(utm.load_pretrain(modelName), test, symbol)
         print('Answer : {0}'.format(answer))
 
     # finalize
