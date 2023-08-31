@@ -44,3 +44,17 @@ def make_tensor(df):
     y_train = torch.from_numpy(y_train).type(torch.Tensor)
     y_test = torch.from_numpy(y_test).type(torch.Tensor)
     return x_train, x_test, y_train, y_test
+
+class LSTM(nn.Module):
+    def __init__(self, input_size=8, hidden_size=50, out_size=1):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.lstm = nn.LSTM(input_size, hidden_size)
+        self.linear = nn.Linear(hidden_size, out_size)
+
+        self.hidden = (torch.zeros(1,1,hidden_size), torch.zeros(1,1,hidden_size))
+
+    def forward(self, seq):
+        lstm_out, self.hidden = self.lstm(seq.view(len(seq), 1, -1), self.hidden)
+        pred = self.linear(lstm_out.view(len(seq), -1))
+        return pred[-1]

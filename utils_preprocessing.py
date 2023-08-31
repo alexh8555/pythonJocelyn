@@ -144,8 +144,10 @@ def getTrainData(data, target, pastData=30, futureData=5, validate_rate=0.1):
     return X_train, Y_train, X_val, Y_val
 
 def getTestData(data, lookback=30, day=0):
-    # day=0 to predict tomorrow
-    # day=1 to predict today for verification
+    '''
+    day=0 to predict tomorrow
+    day=1 to predict today for verification
+    '''
     testing = []
     if day == 0:
         data.pop('close')
@@ -183,15 +185,20 @@ class preDataFugle:
 class preDataYahoo:
     def __init__(self):
         self.model = []
+        self.torchModel = []
         self.date = datetime.datetime.utcfromtimestamp(time.time())
         self.today = str(self.date.month) + str(self.date.day)
         self.model.extend(glob.glob('yahoo_' + self.today + '_model/**.h5'))
+        self.torchModel.extend(glob.glob('yahoo_torch_' + self.today + '_model/**.pt'))
         self.raw = 'raw_yahoo/history_raw.csv' # Maybe change to list
         # self.file.extend(glob.glob(self.today + 'npy/**.npy'))
         print('[Yahoo] Checking what we got in local...')
 
     def getModelName(self, symbol):
         return 'yahoo_' + self.today + '_model/' + self.today + '_' + symbol + '.h5'
+
+    def getTorchModelName(self, symbol):
+        return 'yahoo_torch_' + self.today + '_model/' + self.today + '_' + symbol + '.pt'
 
     def listModel(self):
         print('{0}'.format(self.model))

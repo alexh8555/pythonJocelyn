@@ -1,18 +1,23 @@
 import pandas as pd
 import os, logging
 import matplotlib.pyplot as plt
-import utils_model as model
+# import utils_model as model
 import utils_preprocessing as prep
 from time import time
 from datetime import datetime
 import utils_pytorch as pt
+import torch.nn as nn
+import torch
+import numpy as np
 
 ''' Config '''
 # TODO: support only one symbol at a time, because we have to train with only one stock at a time
 symbols = ['2330']
-pastData = 10 # Days of Feature
-futureData = 5 # Days of Target
+lookback = 10 # Days of Feature
+futureData = 1 # Days of Target
 validate_rate = 0.1 # Ratio for validation data
+USE_FUGEL = False
+USE_YAHOO = True
 DEBUG_PREPROCESSING = True
 SKIP_TRAIN = False
 
@@ -35,23 +40,31 @@ def finalize(start_sys_time):
 ''' Main Process'''
 if __name__ == '__main__':
     start_sys_time = initialize()
-    preData = prep.preDataFugle()
-
+    '''Download data'''
     # TODO: Get all stocks data
-    # data = prep.get_hist_data()
+    # data = prep.get_hist_data_fugle()
     # TODO: append new data everyday
+    if USE_FUGEL:
+        preData = prep.preDataFugle()
 
-    if not os.path.isfile(preData.raw):
-        data = prep.get_hist_data_fugle(symbols=symbols)
-        data.to_csv(preData.raw, index=False)
-    else:
-        logging.info('file:{0}, symbol:{1} exist!'.format(preData.raw, symbols[0]))
+        if not os.path.isfile(preData.raw):
+            data = prep.get_hist_data_fugle(symbols=symbols)
+            data.to_csv(preData.raw, index=False)
+        else:
+            logging.info('file:{0}, symbol:{1} exist!'.format(preData.raw, symbols[0]))
 
-    ''' Training '''
+    elif USE_YAHOO:
+        preData = prep.preDataYahoo()
+        if not os.path.isfile(preData.raw):
+            data = prep.get_hist_data_yahoo(symbols=symbols)
+            data.to_csv(preData.raw, index=False)
+        else:
+            logging.info('file:{0}, symbol:{1} exist!'.format(preData.raw, symbols[0]))
+
     for symbol in symbols:
-        modelName = prep.getModelName(symbol, start_sys_time)
+        modelName = preData.getTorchModelName(symbol)
 
-        if (modelName in preData.model) or (SKIP_TRAIN):
+        if (modelName in preData.torchModel) or (SKIP_TRAIN):
             logging.info(symbol + ' model already trained, skip!')
             continue
 
@@ -61,13 +74,6 @@ if __name__ == '__main__':
         data = pd.read_csv(preData.raw)
         train_data = prep.preprocessing(data, list(data.columns.values))
         columes = list(train_data.keys())
-
-        train_data = pd.DataFrame.from_dict(train_data)
-
-        # Pop those not needed columes
-        train_data.pop('symbol'); train_data.pop('date');
-        x_train, x_test, y_train, y_test = pt.make_tensor(train_data)
-        print('y{0}, x{1}'.format(y_train.size(),x_train.size()))
 
         # Generate training/validation data
         train_data = pd.DataFrame.from_dict(train_data)
@@ -79,38 +85,79 @@ if __name__ == '__main__':
         target_data = train_data.pop('close')
 
         # Prepare data for training/validation
-        X_train, Y_train, X_test, Y_test = prep.getTrainData(train_data, target_data, pastData, futureData, validate_rate)
+        X_train, Y_train, X_test, Y_test = prep.getTrainData(train_data, target_data, lookback, futureData, validate_rate)
 
-        lookback = 4
-        # train-test split for time series
-        X_train, Y_train = pt.convert_dataset(X_train, Y_train)
-        X_test, Y_test = pt.convert_dataset(X_test, Y_test)
+        # train-test split for time series        X_train, Y_train = pt.convert_dataset(X_train, Y_train)
         # X_train, Y_train = pt.create_dataset(train, lookback=lookback)
         # X_test, Y_test = pt.create_dataset(test, lookback=lookback)
 
         # train model
         # model, history = model.start_training(model, X_train, Y_train, X_validate, Y_validate, modelName)
-        model = pt.MyModel().float()
-        pt.start_training(model, X_train, Y_train, modelName)
+        model = pt.LSTM()
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+        print(model)
+        print(len(list(model.parameters())))
+        for i in range(len(list(model.parameters()))):
+            print(list(model.parameters())[i].size())
+
+        X_train = torch.Tensor(X_train)
+        Y_train = torch.Tensor(Y_train)
+        X_test = torch.Tensor(X_test)
+        Y_test = torch.Tensor(Y_test)
+        print('X_train.shape = ', X_train.shape)
+        print('Y_train.shape = ', Y_train.shape)
+        print('X_test.shape = ', X_test.shape)
+        print('Y_test.shape = ', Y_test.shape)
+
+        ''' Training '''
+        num_epochs = 1
+        hist = np.zeros(num_epochs)
+
+        print(f"Start Training... Total Epochs:{num_epochs}")
+        for t in range(num_epochs):
+            for Xt, Yt in zip(X_train, Y_train):
+                optimizer.zero_grad()
+                model.hidden = (torch.zeros(1,1,model.hidden_size),
+                                torch.zeros(1,1,model.hidden_size))
+
+
+                Y_pred = model(Xt)
+                loss = criterion(Y_pred, Yt)
+                loss.backward()
+                optimizer.step()
+            print(f"Epoch {t}, Loss: {loss.item()}")
+        print(preData.getTorchModelName(symbol))
+        print(preData.getTorchModelName(symbol).split('/'))
+
+        if not os.path.exists(preData.getTorchModelName(symbol).split('/')[0]):
+            os.makedirs(preData.getTorchModelName(symbol).split('/')[0])
+        torch.save(model, preData.getTorchModelName(symbol))
 
     ''' Prediction '''
-    # for symbol in symbols:
-    #     # TODO: add model class
-    #     modelName = prep.getModelName(symbol, start_sys_time)
-    #     logging.info('Start prediction {0}, file:{1}'.format(symbol, modelName))
+    for symbol in symbols:
+        # TODO: add model class
+        modelName = preData.getTorchModelName(symbol)
+        logging.info('Start prediction {0}, file:{1}'.format(symbol, modelName))
+        model = torch.load(modelName)
 
-    #     # Read data from csv and prepare data
-    #     data = pd.read_csv(preData.raw)
-    #     test_data = prep.preprocessing(data, list(data.columns.values))
-    #     test_data = pd.DataFrame.from_dict(test_data)
-    #     test_data.pop('symbol'); test_data.pop('date');
+        # Read data from csv and prepare data
+        data = pd.read_csv(preData.raw)
+        test_data = prep.preprocessing(data, list(data.columns.values))
+        test_data = pd.DataFrame.from_dict(test_data)
+        test_data.pop('symbol'); test_data.pop('date');
 
-    #     # day=0 to predict tomorrow
-    #     # day=1 to predict today for verification
-    #     test, answer = prep.getTestData(test_data, pastData, day=0)
+        # day=0 to predict tomorrow
+        # day=1 to predict today for verification
+        test, answer = prep.getTestData(test_data, lookback, day=0)
+        test = torch.Tensor(test)
+        answer = torch.Tensor(answer)
 
-    #     model.prediction(model.load_pretrain(modelName), test, symbol)
-    #     print('Answer : {0}'.format(answer))
+        print('test.shape = ', test.shape)
+        print('answer.shape = ', answer.shape)
+
+        Y_pred = model(test[0])
+        print(f'Pred: {Y_pred}, Answer : {answer}')
 
     # finalize
     finalize(start_sys_time)

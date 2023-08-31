@@ -10,7 +10,7 @@ from datetime import datetime
 # TODO: support only one symbol at a time, because we have to train with only one stock at a time
 symbols = ['2330']
 lookback = 10 # Days to lookback
-futureData = 5 # Days of Target
+futureData = 1 # Days of Target
 validate_rate = 0.1 # Ratio for validation data
 USE_FUGEL = False
 USE_YAHOO = True
@@ -101,7 +101,7 @@ if __name__ == '__main__':
         X_train, Y_train, X_validate, Y_validate = prep.getTrainData(train_data, target_data, lookback, futureData, validate_rate)
 
         # train model
-        model, history = utm.start_training(model, X_train, Y_train, X_validate, Y_validate, modelName)
+        model, history = utm.start_training(X_train, Y_train, X_validate, Y_validate, modelName)
 
     ''' Prediction '''
     for symbol in symbols:
@@ -115,8 +115,10 @@ if __name__ == '__main__':
         test_data = pd.DataFrame.from_dict(test_data)
         test_data.pop('symbol'); test_data.pop('date');
 
-        # day=0 to predict tomorrow
-        # day=1 to predict today for verification
+        '''
+        day=0 to predict tomorrow
+        day=1 to predict today for verification
+        '''
         test, answer = prep.getTestData(test_data, lookback, day=0)
 
         utm.prediction(utm.load_pretrain(modelName), test, symbol)
