@@ -105,16 +105,20 @@ def preprocessing(data, columes):
             # Convert other data
             out_data[c] = data[c].tolist()
 
-    # TODO: Maybe the reorder part can be better coding
-    # Get sorted index from timestamp
-    sort_idx = [i[0] for i in sorted(enumerate(out_data['ts']), key=lambda x:x[1])]
+    if False:
+        # TODO: Maybe the reorder part can be better coding
+        # Get sorted index from timestamp
+        sort_idx = [i[0] for i in sorted(enumerate(out_data['ts']), key=lambda x:x[1])]
 
-    # Reorder everything according to index
-    for c in list(out_data.keys()):
-        tmp_list = []
-        for i in sort_idx:
-            tmp_list.append(out_data[c][i])
-        sorted_out_data[c] = tmp_list
+        # Reorder everything according to index
+        for c in list(out_data.keys()):
+            tmp_list = []
+            for i in sort_idx:
+                tmp_list.append(out_data[c][i])
+            sorted_out_data[c] = tmp_list
+    else:
+        sorted_out_data = pd.DataFrame(out_data).sort_values(by='date')
+
 
     return sorted_out_data
 

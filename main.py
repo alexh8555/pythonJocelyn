@@ -71,7 +71,7 @@ if __name__ == '__main__':
         # ['date', 'open', 'high', 'low', 'close', 'volume', 'turnover', 'change', 'symbol'] + ['ts', 'weekday']
         data = pd.read_csv(preData.raw)
         train_data = prep.preprocessing(data, list(data.columns.values))
-        columes = list(train_data.keys())
+        columes = list(train_data.columns)
 
         if DEBUG_PREPROCESSING:
             for j in columes:
@@ -89,7 +89,7 @@ if __name__ == '__main__':
             plt.show()
 
         # Generate training/validation data
-        train_data = pd.DataFrame.from_dict(train_data)
+        # train_data = pd.DataFrame.from_dict(train_data)
 
         # TODO: Some of the values need to be normalize, also check the sequence of data should be reverse or not?
 
@@ -112,7 +112,7 @@ if __name__ == '__main__':
         # Read data from csv and prepare data
         data = pd.read_csv(preData.raw)
         test_data = prep.preprocessing(data, list(data.columns.values))
-        test_data = pd.DataFrame.from_dict(test_data)
+        # test_data = pd.DataFrame.from_dict(test_data)
         test_data.pop('symbol'); test_data.pop('date');
 
         '''

@@ -1,11 +1,11 @@
 import pandas as pd
 import os, logging
 import matplotlib.pyplot as plt
-# import utils_model as model
+import utils_pytorch as utm
+# import utils_model as utm
 import utils_preprocessing as prep
 from time import time
 from datetime import datetime
-import utils_pytorch as pt
 import torch.nn as nn
 import torch
 import numpy as np
@@ -16,6 +16,7 @@ symbols = ['2330']
 lookback = 10 # Days of Feature
 futureData = 1 # Days of Target
 validate_rate = 0.1 # Ratio for validation data
+num_epochs = 1 # For training
 USE_FUGEL = False
 USE_YAHOO = True
 DEBUG_PREPROCESSING = True
@@ -73,10 +74,9 @@ if __name__ == '__main__':
         # ['date', 'open', 'high', 'low', 'close', 'volume', 'turnover', 'change', 'symbol'] + ['ts', 'weekday']
         data = pd.read_csv(preData.raw)
         train_data = prep.preprocessing(data, list(data.columns.values))
-        columes = list(train_data.keys())
-
+        print(train_data.head())
         # Generate training/validation data
-        train_data = pd.DataFrame.from_dict(train_data)
+        # train_data = pd.DataFrame.from_dict(train_data)
 
         # TODO: Some of the values need to be normalize, also check the sequence of data should be reverse or not?
 
@@ -87,13 +87,13 @@ if __name__ == '__main__':
         # Prepare data for training/validation
         X_train, Y_train, X_test, Y_test = prep.getTrainData(train_data, target_data, lookback, futureData, validate_rate)
 
-        # train-test split for time series        X_train, Y_train = pt.convert_dataset(X_train, Y_train)
-        # X_train, Y_train = pt.create_dataset(train, lookback=lookback)
-        # X_test, Y_test = pt.create_dataset(test, lookback=lookback)
+        # train-test split for time series        X_train, Y_train = utm.convert_dataset(X_train, Y_train)
+        # X_train, Y_train = utm.create_dataset(train, lookback=lookback)
+        # X_test, Y_test = utm.create_dataset(test, lookback=lookback)
 
         # train model
         # model, history = model.start_training(model, X_train, Y_train, X_validate, Y_validate, modelName)
-        model = pt.LSTM()
+        model = utm.LSTM()
         criterion = nn.MSELoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
         print(model)
@@ -111,7 +111,6 @@ if __name__ == '__main__':
         print('Y_test.shape = ', Y_test.shape)
 
         ''' Training '''
-        num_epochs = 1
         hist = np.zeros(num_epochs)
 
         print(f"Start Training... Total Epochs:{num_epochs}")
@@ -144,20 +143,40 @@ if __name__ == '__main__':
         # Read data from csv and prepare data
         data = pd.read_csv(preData.raw)
         test_data = prep.preprocessing(data, list(data.columns.values))
-        test_data = pd.DataFrame.from_dict(test_data)
-        test_data.pop('symbol'); test_data.pop('date');
+        # test_data = pd.DataFrame.from_dict(test_data)
+        test_data.pop('symbol');
+        date_bk = test_data.pop('date').values.tolist();
 
         # day=0 to predict tomorrow
         # day=1 to predict today for verification
-        test, answer = prep.getTestData(test_data, lookback, day=0)
-        test = torch.Tensor(test)
-        answer = torch.Tensor(answer)
+        Y_pred = []
 
-        print('test.shape = ', test.shape)
-        print('answer.shape = ', answer.shape)
+        target_data = test_data.pop('close')
+        _, _, X_test, Y_test = prep.getTrainData(test_data, target_data, lookback, futureData, validate_rate)
+        X_test = torch.Tensor(X_test)
+        # Y_test = torch.Tensor(Y_test)
 
-        Y_pred = model(test[0])
-        print(f'Pred: {Y_pred}, Answer : {answer}')
+        for Xt, Yt in zip(X_test, Y_test):
+            test = model(Xt).tolist()
+            Y_pred.append(test)
+            try:
+                print(f'Pred: {test}, Answer : {Yt}')
+            except:
+                print(f"Pred: {test}, No Answer, it's future")
+
+        plt.figure().subplots_adjust(bottom=0.3)
+        plt.title(f'{symbol}')
+        if True:
+            plt.plot(date_bk[-len(Y_pred)::5], Y_pred[::5], label='Predict')
+            plt.plot(date_bk[-len(Y_pred)::5], Y_test[::5], label='Answer')
+        else:
+            plt.plot(range(len(Y_pred)), Y_pred, label='Predict')
+            plt.plot(range(len(Y_pred)), Y_test, label='Answer')
+        plt.legend(loc='upper right')
+        plt.xticks(rotation=45, ha='right')
+        plt.xlabel('data')
+        plt.ylabel('price')
+        plt.show()
 
     # finalize
     finalize(start_sys_time)
