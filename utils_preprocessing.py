@@ -173,15 +173,20 @@ def getTestData(data, lookback=30, day=0):
 class preDataFugle:
     def __init__(self):
         self.model = []
+        self.torchModel = []
         self.date = datetime.datetime.utcfromtimestamp(time.time())
         self.today = str(self.date.month) + str(self.date.day)
         self.model.extend(glob.glob('fugle_' + self.today + '_model/**.h5'))
+        self.torchModel.extend(glob.glob('fugle_torch_' + self.today + '_model/**.pt'))
         self.raw = 'raw_fugle/history_raw.csv' # Maybe change to list
         # self.file.extend(glob.glob(self.today + 'npy/**.npy'))
         print('[Fugle] Checking what we got in local...')
 
     def getModelName(self, symbol):
         return 'fugle_' + self.today + '_model/' + self.today + '_' + symbol + '.h5'
+
+    def getTorchModelName(self, symbol):
+        return 'fugle_torch_' + self.today + '_model/' + self.today + '_' + symbol + '.pt'
 
     def listModel(self):
         print('{0}'.format(self.model))

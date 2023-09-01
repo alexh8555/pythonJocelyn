@@ -50,11 +50,14 @@ if __name__ == '__main__':
         else:
             logging.info('file:{0}, symbol:{1} exist!'.format(preData.raw, symbols[0]))
 
-    elif USE_YAHOO:
+    else : #elif USE_YAHOO:
         preData = prep.preDataYahoo()
         if not os.path.isfile(preData.raw):
             data = prep.get_hist_data_yahoo(symbols=symbols)
-            data.to_csv(preData.raw, index=False)
+            if data is not None:
+                data.to_csv(preData.raw, index=False)
+            else:
+                print('get data fail...')
         else:
             logging.info('file:{0}, symbol:{1} exist!'.format(preData.raw, symbols[0]))
 
